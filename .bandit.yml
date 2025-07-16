@@ -1,0 +1,4 @@
+# 基本配置
+exclude_dirs: [".venv", "venv", "build", "dist"]
+severity_level: medium
+confidence_level: medium

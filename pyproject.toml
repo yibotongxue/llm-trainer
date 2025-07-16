@@ -1,0 +1,43 @@
+[project]
+name = "llm-trainer"
+version = "0.1.0"
+description = "大模型训练器"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = []
+
+[tool.uv]
+index-url = "https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple"
+
+[tool.black]
+line-length = 88
+target-version = ['py312']
+include = '\.pyi?$'
+
+[tool.isort]
+profile = "black"
+line_length = 88
+src_paths = ["llm_trainer", "tests"]
+
+[tool.mypy]
+strict = true
+ignore_missing_imports = true
+python_version = "3.12"
+show_error_codes = true
+disable_error_code = []
+
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["llm_trainer"]
+
+[dependency-groups]
+dev = [
+    "bandit>=1.8.5",
+    "ipykernel>=6.29.5",
+    "mypy>=1.16.1",
+    "pre-commit>=4.2.0",
+    "pytest>=8.4.1",
+]
