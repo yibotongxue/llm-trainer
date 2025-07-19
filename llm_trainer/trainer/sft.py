@@ -1,5 +1,12 @@
+import os
+
 from datasets import load_dataset
-from transformers import AutoModelForCausalLM, AutoTokenizer
+from transformers import (
+    AutoModelForCausalLM,
+    AutoTokenizer,
+    PreTrainedModel,
+    PreTrainedTokenizerBase,
+)
 from trl import SFTConfig, SFTTrainer
 
 from ..data_formatter import DataFormatterRegistry
@@ -8,14 +15,14 @@ from .base import BaseTrainer
 
 class SftTrainer(BaseTrainer):
     def init_model(self) -> None:
-        model_name_or_path = self.model_cfgs["model_name_or_path"]
+        model_name_or_path = self.model_cfgs["model_path"]
         model_args = self.model_cfgs.get("model_args", {})
-        self.model = AutoModelForCausalLM.from_pretrained(
+        self.model: PreTrainedModel = AutoModelForCausalLM.from_pretrained(
             model_name_or_path,
             **model_args,
         )
         tokenizer_args = self.model_cfgs.get("tokenizer_args", {})
-        self.tokenizer = AutoTokenizer.from_pretrained(
+        self.tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
             model_name_or_path,
             use_fast=True,
             **tokenizer_args,
@@ -31,13 +38,19 @@ class SftTrainer(BaseTrainer):
         data_template = self.data_cfgs.get("data_template", "default")
         data_formatter = DataFormatterRegistry.get_by_name(data_template)()
         self.dataset = self.dataset.map(
-            data_formatter.format_conversation,
+            lambda x: data_formatter.format_conversation(x).model_dump(),
             remove_columns=self.dataset.column_names,
             desc="Formatting dataset",
         )
 
     def init_trainer(self) -> None:
         training_args = self.training_cfgs.get("training_args", {})
+        project_name = self.training_cfgs.get("project_name", "sft")
+        if (
+            training_args.get("report_to") is not None
+            and "wandb" in training_args["report_to"]
+        ):
+            os.environ["WANDB_PROJECT"] = project_name
         training_config = SFTConfig(
             **training_args,
         )

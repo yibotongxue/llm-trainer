@@ -19,7 +19,7 @@ class DefaultDataFormatter(BaseDataFormatter):
         )
 
 
-@DataFormatterRegistry.register("star1")
+@DataFormatterRegistry.register("STAR-1")
 class Star1DataFormatter(BaseDataFormatter):
     def format_conversation(
         self, raw_sample: dict[str, Any]
