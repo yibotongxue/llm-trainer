@@ -21,12 +21,26 @@ class SftTrainer(BaseTrainer):
             model_name_or_path,
             **model_args,
         )
+        self.model.gradient_checkpointing_enable()
+        self.model.config.use_cache = (
+            False  # Disable cache for generation during training
+        )
         tokenizer_args = self.model_cfgs.get("tokenizer_args", {})
         self.tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
             model_name_or_path,
             use_fast=True,
             **tokenizer_args,
         )
+        self.tokenizer.chat_template = """{%- for message in messages %}
+    {%- if (message.role == "user") or (message.role == "system" and not loop.first) %}
+        {{- '<|im_start|>' + message.role + '\\n' + message.content + '<|im_end|>' + '\\n' }}
+    {%- elif (message.role == "assistant") %}
+        {% generation %}    {{- '<|im_start|>' + message.role + '\\n' + message.content + '<|im_end|>' + '\\n' }}    {% endgeneration %}
+    {%- endif %}
+{%- endfor %}
+{%- if add_generation_prompt %}
+    {{- '<|im_start|>assistant\\n' }}
+{%- endif %}"""
 
     def init_datasets(self) -> None:
         data_path = self.data_cfgs["data_path"]
@@ -57,12 +71,17 @@ class SftTrainer(BaseTrainer):
         self.trainer = SFTTrainer(
             model=self.model,
             args=training_config,
+            processing_class=self.tokenizer,
             train_dataset=self.dataset,
         )
 
 
 def main() -> None:
     import argparse
+
+    import deepspeed
+
+    deepspeed.ops.op_builder.CPUAdamBuilder().load()
 
     from ..utils.config import (
         deepcopy_config,
@@ -89,3 +108,7 @@ def main() -> None:
     trainer = SftTrainer(**cfgs)
 
     trainer.train()
+
+
+if __name__ == "__main__":
+    main()
