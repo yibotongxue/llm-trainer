@@ -5,6 +5,8 @@ description = "大模型训练器"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "numpy==2.2",
+    "pyarrow==20.0.0",
     "pydantic>=2.11.7",
     "torch==2.6.0",
     "trl>=0.19.1",
