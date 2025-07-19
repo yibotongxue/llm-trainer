@@ -4,7 +4,11 @@ version = "0.1.0"
 description = "大模型训练器"
 readme = "README.md"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "pydantic>=2.11.7",
+    "torch==2.6.0",
+    "trl>=0.19.1",
+]
 
 [tool.uv]
 index-url = "https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple"
