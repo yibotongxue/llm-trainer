@@ -1,0 +1,37 @@
+model_cfgs:
+  model_path: deepseek-ai/DeepSeek-R1-Distill-Qwen-7B
+  model_args: {}
+
+data_cfgs:
+  data_path: UCSC-VLAA/STAR-1
+  data_size: null
+  data_template: STAR-1
+  load_configs:
+    split: train
+    num_proc: 8
+
+training_cfgs:
+  training_args:
+    output_dir: ./output/sft
+    logging_strategy: steps
+    logging_steps: 10
+    save_strategy: epoch
+    gradient_accumulation_steps: 2
+    torch_empty_cache_steps: 10
+    num_train_epochs: 5
+    max_grad_norm: 1.0
+    bf16: true
+    fp16: false
+    dataloader_num_workers: 8
+    run_name: sft
+    report_to: [wandb]
+    torch_compile: true
+    learning_rate: 5e-5
+    weight_decay: 5e-6
+    adam_beta1: 0.9
+    adam_beta2: 0.99
+    adam_epsilon: 1e-8
+    # sft
+    max_length: 4096
+    packing: true
+    assistant_only_loss: true
