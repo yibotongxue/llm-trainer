@@ -6,7 +6,6 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "deepspeed==0.15.4",
-    "lightning>=2.5.2",
     "numpy==2.2",
     "pyarrow==20.0.0",
     "pydantic>=2.11.7",

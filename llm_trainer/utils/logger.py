@@ -7,8 +7,6 @@ import sys
 from logging import Handler
 from typing import Any
 
-from .multi_process import rank_zero_only
-
 
 class Logger:
     """一个封装了 Python logging 模块的日志记录器"""
@@ -118,10 +116,6 @@ class Logger:
     def log(self, level: int, msg: str, extra: dict[str, Any] | None = None) -> None:
         """通用日志记录方法"""
         self.logger.log(level, msg, extra=extra)
-
-    @rank_zero_only
-    def print(self, msg: str) -> None:
-        print(msg)
 
 
 app_logger = Logger(
