@@ -26,6 +26,7 @@ data_cfgs:
     drop_last: false
 
 training_cfgs:
+  deepspeed_config: configs/deepspeed/deepspeed_stage_3.json
   training_args:
     accelerator: gpu
     precision: bf16
