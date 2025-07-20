@@ -1,0 +1,38 @@
+model_cfgs:
+  model_path: deepseek-ai/DeepSeek-R1-Distill-Qwen-7B
+  model_args: {}
+  tokenizer_args: {}
+  optimizer:
+    lr: 5.e-5
+    weight_decay: 5.e-6
+    betas: [0.9, 0.99]
+    eps: 1.e-8
+  lr_scheduler:
+    T_max: 315
+
+data_cfgs:
+  data_path: UCSC-VLAA/STAR-1
+  data_size: null
+  data_template: STAR-1
+  load_configs:
+    split: train
+    num_proc: 8
+  max_length: 2048
+  train_dataloader:
+    batch_size: 1
+    shuffle: true
+    num_workers: 8
+    pin_memory: true
+    drop_last: false
+
+training_cfgs:
+  training_args:
+    accelerator: gpu
+    precision: bf16
+    logger: wandb
+    max_epochs: 5
+    log_every_n_steps: 10
+    enable_checkpointing: true
+    enable_progress_bar: true
+    accumulate_grad_batches: 2
+    gradient_clip_val: 1.0

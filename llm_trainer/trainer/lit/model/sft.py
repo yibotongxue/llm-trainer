@@ -1,4 +1,6 @@
 import torch
+from torch.optim import AdamW, Optimizer
+from torch.optim.lr_scheduler import CosineAnnealingLR
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from transformers.modeling_outputs import CausalLMOutput
 from transformers.modeling_utils import PreTrainedModel
@@ -60,3 +62,17 @@ class LightningSftModule(BaseCustomLightningModule):
         self.log("train_loss", loss, on_step=True, prog_bar=True)
         self.log("train_accuracy", accuracy, on_step=True, prog_bar=True)
         return loss
+
+    def configure_optimizers(self) -> Optimizer:
+        optimizer_cfgs = self.training_cfgs.get("optimizer", {})
+        optimizer = AdamW(
+            self.model.parameters(),
+            **optimizer_cfgs,
+        )
+        lr_scheduler_cfgs = self.training_cfgs.get("lr_scheduler", {})
+        if lr_scheduler_cfgs:
+            lr_scheduler = CosineAnnealingLR(optimizer=optimizer, **lr_scheduler_cfgs)
+            return {
+                "optimizer": optimizer,
+                "lr_scheduler": lr_scheduler,
+            }
