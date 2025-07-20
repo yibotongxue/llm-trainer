@@ -7,7 +7,8 @@ from torch.utils.data import Dataset
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from transformers.modeling_utils import PreTrainedModel
 from transformers.tokenization_utils import PreTrainedTokenizer
-from trl import SFTConfig, SFTTrainer
+from transformers.trainer import Trainer
+from transformers.training_args import TrainingArguments
 
 from ..data_formatter import BaseDataFormatter, DataFormatterRegistry
 from ..utils.type_utils import ConversationalFormatSample
@@ -115,10 +116,10 @@ class SftTrainer(BaseTrainer):
             and "wandb" in training_args["report_to"]
         ):
             os.environ["WANDB_PROJECT"] = project_name
-        training_config = SFTConfig(
+        training_config = TrainingArguments(
             **training_args,
         )
-        self.trainer = SFTTrainer(
+        self.trainer = Trainer(
             model=self.model,
             args=training_config,
             data_collator=self.collate_fn,

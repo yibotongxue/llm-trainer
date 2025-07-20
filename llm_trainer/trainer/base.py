@@ -3,6 +3,8 @@ from typing import Any
 
 from transformers import Trainer
 
+from ..utils.logger import Logger
+
 
 class BaseTrainer(ABC):
     def __init__(
@@ -15,12 +17,13 @@ class BaseTrainer(ABC):
         self.data_cfgs = data_cfgs
         self.training_cfgs = training_cfgs
         self.trainer: Trainer | None = None
+        self.logger = Logger(name=f"{self.__class__.__name__.lower()}_logger")
         self.init_model()
-        print("模型初始化成功")
+        self.logger.print("模型初始化成功")
         self.init_datasets()
-        print("数据集初始化成功")
+        self.logger.print("数据集初始化成功")
         self.init_trainer()
-        print("训练器初始化成功")
+        self.logger.print("训练器初始化成功")
 
     @abstractmethod
     def init_model(self) -> None:
