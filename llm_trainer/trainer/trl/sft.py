@@ -1,19 +1,16 @@
 import os
 
 from datasets import load_dataset
-from transformers import (
-    AutoModelForCausalLM,
-    AutoTokenizer,
-    PreTrainedModel,
-    PreTrainedTokenizerBase,
-)
+from transformers import AutoModelForCausalLM, AutoTokenizer
+from transformers.modeling_utils import PreTrainedModel
+from transformers.tokenization_utils import PreTrainedTokenizer
 from trl import SFTConfig, SFTTrainer
 
-from ..data_formatter import DataFormatterRegistry
-from .base import BaseTrainer
+from ...data_formatter import DataFormatterRegistry
+from .base import BaseTRLTrainer
 
 
-class SftTrainer(BaseTrainer):
+class TRLSftTrainer(BaseTRLTrainer):
     def init_model(self) -> None:
         model_name_or_path = self.model_cfgs["model_path"]
         model_args = self.model_cfgs.get("model_args", {})
@@ -26,7 +23,7 @@ class SftTrainer(BaseTrainer):
             False  # Disable cache for generation during training
         )
         tokenizer_args = self.model_cfgs.get("tokenizer_args", {})
-        self.tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
+        self.tokenizer: PreTrainedTokenizer = AutoTokenizer.from_pretrained(
             model_name_or_path,
             use_fast=True,
             **tokenizer_args,

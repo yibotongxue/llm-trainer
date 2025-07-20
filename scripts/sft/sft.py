@@ -2,7 +2,7 @@ import argparse
 
 import deepspeed
 
-from llm_trainer.trainer.sft import SftTrainer
+from llm_trainer.trainer.trl.sft import TRLSftTrainer
 from llm_trainer.utils.config import (
     deepcopy_config,
     load_config,
@@ -29,7 +29,7 @@ def main() -> None:
 
     cfgs = deepcopy_config(cfgs)
 
-    trainer = SftTrainer(**cfgs)
+    trainer = TRLSftTrainer(**cfgs)
 
     trainer.train()
 
