@@ -1,16 +1,37 @@
 import os
+from typing import TypedDict
 
+import torch
 from datasets import load_dataset
-from transformers import (
-    AutoModelForCausalLM,
-    AutoTokenizer,
-    PreTrainedModel,
-    PreTrainedTokenizerBase,
-)
+from torch.utils.data import Dataset
+from transformers import AutoModelForCausalLM, AutoTokenizer
+from transformers.modeling_utils import PreTrainedModel
+from transformers.tokenization_utils import PreTrainedTokenizer
 from trl import SFTConfig, SFTTrainer
 
-from ..data_formatter import DataFormatterRegistry
+from ..data_formatter import BaseDataFormatter, DataFormatterRegistry
+from ..utils.type_utils import ConversationalFormatSample
 from .base import BaseTrainer
+
+
+class _SftBatchSample(TypedDict):
+    input_ids: torch.LongTensor
+    attention_mask: torch.BoolTensor
+    labels: torch.LongTensor
+
+
+class _SftDataset(Dataset):  # type: ignore [misc]
+    def __init__(self, raw_dataset: Dataset, data_formatter: BaseDataFormatter) -> None:
+        self.raw_dataset = raw_dataset
+        self.data_formatter = data_formatter
+
+    def __len__(self) -> int:
+        return len(self.raw_dataset)
+
+    def __getitem__(self, idx: int) -> ConversationalFormatSample:
+        item = self.raw_dataset[idx]
+        formatted_item = self.data_formatter.format_conversation(item)
+        return formatted_item
 
 
 class SftTrainer(BaseTrainer):
@@ -26,35 +47,64 @@ class SftTrainer(BaseTrainer):
             False  # Disable cache for generation during training
         )
         tokenizer_args = self.model_cfgs.get("tokenizer_args", {})
-        self.tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
+        self.tokenizer: PreTrainedTokenizer = AutoTokenizer.from_pretrained(
             model_name_or_path,
             use_fast=True,
             **tokenizer_args,
         )
-        self.tokenizer.chat_template = """{%- for message in messages %}
-    {%- if (message.role == "user") or (message.role == "system" and not loop.first) %}
-        {{- '<|im_start|>' + message.role + '\\n' + message.content + '<|im_end|>' + '\\n' }}
-    {%- elif (message.role == "assistant") %}
-        {% generation %}    {{- '<|im_start|>' + message.role + '\\n' + message.content + '<|im_end|>' + '\\n' }}    {% endgeneration %}
-    {%- endif %}
-{%- endfor %}
-{%- if add_generation_prompt %}
-    {{- '<|im_start|>assistant\\n' }}
-{%- endif %}"""
 
     def init_datasets(self) -> None:
         data_path = self.data_cfgs["data_path"]
         load_cfgs = self.data_cfgs.get("load_configs", {})
-        self.dataset = load_dataset(data_path, **load_cfgs)
+        raw_dataset = load_dataset(data_path, **load_cfgs)
         data_size = self.data_cfgs.get("data_size", None)
         if data_size is not None:
-            self.dataset = self.dataset.select(range(int(data_size)))
+            raw_dataset = raw_dataset.select(range(int(data_size)))
         data_template = self.data_cfgs.get("data_template", "default")
         data_formatter = DataFormatterRegistry.get_by_name(data_template)()
-        self.dataset = self.dataset.map(
-            lambda x: data_formatter.format_conversation(x).model_dump(),
-            remove_columns=self.dataset.column_names,
-            desc="Formatting dataset",
+        self.dataset = _SftDataset(
+            raw_dataset=raw_dataset,
+            data_formatter=data_formatter,
+        )
+
+    def collate_fn(self, batch: list[ConversationalFormatSample]) -> _SftBatchSample:
+        query_len_list: list[int] = []
+        input_len_list: list[int] = []
+
+        for sample in batch:
+            input_ids = self.tokenizer.apply_chat_template(
+                conversation=sample.messages,
+                add_generation_prompt=False,
+                return_tensors="pt",
+                return_dict=False,
+            )
+            query_ids = self.tokenizer.apply_chat_template(
+                conversation=sample.messages[:-1],
+                add_generation_prompt=True,
+                return_tensors="pt",
+                return_dict=False,
+            )
+            query_len_list.append(query_ids.size(-1))
+            input_len_list.append(input_ids.size(-1))
+
+        batched_input_ids = self.tokenizer.apply_chat_template(
+            conversation=[sample.messages for sample in batch],
+            add_generation_prompt=False,
+            return_tensors="pt",
+            return_dict=True,
+            padding=True,
+        )
+
+        labels = batched_input_ids.input_ids.clone()
+        for i in range(len(batch)):
+            query_len = query_len_list[i]
+            input_len = input_len_list[i]
+            labels[i, -input_len : -input_len + query_len] = -100
+
+        return _SftBatchSample(
+            input_ids=batched_input_ids.input_ids,
+            attention_mask=batched_input_ids.attention_mask,
+            labels=labels,
         )
 
     def init_trainer(self) -> None:
@@ -71,6 +121,6 @@ class SftTrainer(BaseTrainer):
         self.trainer = SFTTrainer(
             model=self.model,
             args=training_config,
-            processing_class=self.tokenizer,
+            data_collator=self.collate_fn,
             train_dataset=self.dataset,
         )

@@ -1,6 +1,8 @@
 model_cfgs:
   model_path: deepseek-ai/DeepSeek-R1-Distill-Qwen-7B
   model_args: {}
+  tokenizer_args:
+    model_max_length: 8192
 
 data_cfgs:
   data_path: UCSC-VLAA/STAR-1
@@ -33,6 +35,6 @@ training_cfgs:
     adam_beta2: 0.99
     adam_epsilon: 1.e-8
     # sft
-    max_length: 2048
+    max_length: 8192
     packing: false
     assistant_only_loss: true
