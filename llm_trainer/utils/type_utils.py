@@ -32,6 +32,19 @@ class InstructionFormatSample(BaseModel):  # type: ignore [misc]
     )
 
 
+class BatchExample(BaseModel):  # type: ignore [misc]
+    prompt: str = Field(..., description="The input prompt for the model")
+    expected_completion: str | None = Field(
+        None, description="The expected output from the model"
+    )
+    failure_completion: str | None = Field(
+        None, description="The actual output from the model"
+    )
+    meta_data: dict[str, Any] = Field(
+        default_factory=dict, description="Additional metadata related to the example"
+    )
+
+
 class TrainingDataSample(TypedDict):
     input_ids: torch.LongTensor
     attention_mask: torch.LongTensor

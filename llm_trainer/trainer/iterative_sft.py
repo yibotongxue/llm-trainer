@@ -1,19 +1,21 @@
 import os
+from typing import Any
 
 from datasets import load_dataset
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from transformers.modeling_utils import PreTrainedModel
 from transformers.tokenization_utils import PreTrainedTokenizer
-from trl import SFTConfig, SFTTrainer
+from trl.trainer import IterativeSFTConfig, IterativeSFTTrainer
 from trl.trainer.utils import pad
 
-from ..custom_dataset.sft_dataset import SftDataset
-from ..data_formatter import DataFormatterRegistry
+from ..batch_producer import get_batch_producer
+from ..custom_dataset.example_dataset import ExampleDataset
+from ..example_formatter import ExampleFormatterRegistry
 from ..utils.type_utils import TrainingDataSample
 from .base import BaseTrainer
 
 
-class SftTrainer(BaseTrainer):
+class IteractiveSftTrainer(BaseTrainer):
     def init_model(self) -> None:
         model_name_or_path = self.model_cfgs["model_path"]
         model_args = self.model_cfgs.get("model_args", {})
@@ -41,13 +43,14 @@ class SftTrainer(BaseTrainer):
         data_size = self.data_cfgs.get("data_size", None)
         if data_size is not None:
             raw_dataset = raw_dataset.select(range(int(data_size)))
-        data_template = self.data_cfgs.get("data_template", "default")
-        data_formatter = DataFormatterRegistry.get_by_name(data_template)()
-        self.dataset = SftDataset(
-            raw_dataset=raw_dataset,
-            data_formatter=data_formatter,
-            tokenizer=self.tokenizer,
+        template = self.data_cfgs.get("template", "default")
+        example_formatter = ExampleFormatterRegistry.get_by_name(template)()
+        self.example_dataset = ExampleDataset(
+            raw_dataset=raw_dataset, example_formatter=example_formatter
         )
+        batch_cfgs: dict[str, Any] = self.data_cfgs.get("batch_configs", {})
+        self.batch_producer = get_batch_producer(batch_cfgs=batch_cfgs)
+        self.example_batch_size = batch_cfgs.get("example_batch_size", 1)
 
     def collate_fn(self, batch: list[TrainingDataSample]) -> TrainingDataSample:
         input_ids_list = [sample["input_ids"] for sample in batch]
@@ -84,15 +87,27 @@ class SftTrainer(BaseTrainer):
             and "wandb" in training_args["report_to"]
         ):
             os.environ["WANDB_PROJECT"] = project_name
-        training_config = SFTConfig(
-            **training_args,
-        )
-        self.trainer = SFTTrainer(
+        training_config = IterativeSFTConfig(**training_args)
+        self.trainer = IterativeSFTTrainer(
             model=self.model,
             args=training_config,
             data_collator=self.collate_fn,
-            train_dataset=self.dataset,
         )
 
     def train(self) -> None:
-        self.trainer.train()
+        batches = [
+            self.example_batch_size[i : i + self.example_batch_size]
+            for i in range(0, len(self.example_dataset), self.example_batch_size)
+        ]
+        for batch in batches:
+            training_data_samples = self.batch_producer.generate_batch(batch)
+            self.trainer.step(
+                input_ids=[sample["input_ids"] for sample in training_data_samples],
+                attention_mask=[
+                    sample["attention_mask"] for sample in training_data_samples
+                ],
+                labels=[sample["labels"] for sample in training_data_samples],
+            )
+        self.trainer.save_model(
+            output_dir=self.training_cfgs.get("output_dir", "output_model"),
+        )
