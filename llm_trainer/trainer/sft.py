@@ -1,43 +1,16 @@
 import os
-from typing import TypedDict
 
-import torch
 from datasets import load_dataset
-from torch.utils.data import Dataset
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from transformers.modeling_utils import PreTrainedModel
 from transformers.tokenization_utils import PreTrainedTokenizer
 from trl import SFTConfig, SFTTrainer
+from trl.trainer.utils import pad
 
-from ..data_formatter import BaseDataFormatter, DataFormatterRegistry
-from ..utils.type_utils import ConversationalFormatSample
+from ..custom_dataset.sft_dataset import SftDataset
+from ..data_formatter import DataFormatterRegistry
+from ..utils.type_utils import TrainingDataSample
 from .base import BaseTrainer
-
-
-class _SftBatchSample(TypedDict):
-    input_ids: torch.LongTensor
-    attention_mask: torch.BoolTensor
-    labels: torch.LongTensor
-
-
-class _ConversationalFormatSample(TypedDict):
-    # 使用 input_ids 作为键名，使SFTTrainer认为数据已经经过处理，从而跳过各种各样的格式检查
-    # TODO 这事实上利用了SFTTrainer的一个bug，可能会在未来的版本中被修复，我们需要设计一个更好的解决方案
-    input_ids: ConversationalFormatSample
-
-
-class _SftDataset(Dataset):  # type: ignore [misc]
-    def __init__(self, raw_dataset: Dataset, data_formatter: BaseDataFormatter) -> None:
-        self.raw_dataset = raw_dataset
-        self.data_formatter = data_formatter
-
-    def __len__(self) -> int:
-        return len(self.raw_dataset)
-
-    def __getitem__(self, idx: int) -> _ConversationalFormatSample:
-        item = self.raw_dataset[idx]
-        formatted_item = self.data_formatter.format_conversation(item)
-        return _ConversationalFormatSample(input_ids=formatted_item)
 
 
 class SftTrainer(BaseTrainer):
@@ -58,6 +31,8 @@ class SftTrainer(BaseTrainer):
             use_fast=True,
             **tokenizer_args,
         )
+        if self.tokenizer.pad_token is None:
+            self.tokenizer.pad_token = self.tokenizer.eos_token
 
     def init_datasets(self) -> None:
         data_path = self.data_cfgs["data_path"]
@@ -68,48 +43,36 @@ class SftTrainer(BaseTrainer):
             raw_dataset = raw_dataset.select(range(int(data_size)))
         data_template = self.data_cfgs.get("data_template", "default")
         data_formatter = DataFormatterRegistry.get_by_name(data_template)()
-        self.dataset = _SftDataset(
+        self.dataset = SftDataset(
             raw_dataset=raw_dataset,
             data_formatter=data_formatter,
+            tokenizer=self.tokenizer,
         )
 
-    def collate_fn(self, batch: list[_ConversationalFormatSample]) -> _SftBatchSample:
-        query_len_list: list[int] = []
-        input_len_list: list[int] = []
-
-        for sample in batch:
-            input_ids = self.tokenizer.apply_chat_template(
-                conversation=sample["input_ids"].messages,
-                add_generation_prompt=False,
-                return_tensors="pt",
-                return_dict=False,
-            )
-            query_ids = self.tokenizer.apply_chat_template(
-                conversation=sample["input_ids"].messages[:-1],
-                add_generation_prompt=True,
-                return_tensors="pt",
-                return_dict=False,
-            )
-            query_len_list.append(query_ids.size(-1))
-            input_len_list.append(input_ids.size(-1))
-
-        batched_input_ids = self.tokenizer.apply_chat_template(
-            conversation=[sample["input_ids"].messages for sample in batch],
-            add_generation_prompt=False,
-            return_tensors="pt",
-            return_dict=True,
-            padding=True,
+    def collate_fn(self, batch: list[TrainingDataSample]) -> TrainingDataSample:
+        input_ids_list = [sample["input_ids"] for sample in batch]
+        attention_mask_list = [sample["attention_mask"] for sample in batch]
+        labels_list = [sample["labels"] for sample in batch]
+        input_ids = pad(
+            input_ids_list,
+            padding_value=self.tokenizer.convert_tokens_to_ids(
+                self.tokenizer.pad_token
+            ),
+            padding_side="left",
         )
-
-        labels = batched_input_ids.input_ids.clone()
-        for i in range(len(batch)):
-            query_len = query_len_list[i]
-            input_len = input_len_list[i]
-            labels[i, -input_len : -input_len + query_len] = -100
-
-        return _SftBatchSample(
-            input_ids=batched_input_ids.input_ids,
-            attention_mask=batched_input_ids.attention_mask,
+        attention_mask = pad(
+            attention_mask_list,
+            padding_value=0,
+            padding_side="left",
+        )
+        labels = pad(
+            labels_list,
+            padding_value=-100,
+            padding_side="left",
+        )
+        return TrainingDataSample(
+            input_ids=input_ids,
+            attention_mask=attention_mask,
             labels=labels,
         )
 

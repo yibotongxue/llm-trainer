@@ -1,5 +1,6 @@
-from typing import Any, Literal
+from typing import Any, Literal, TypedDict
 
+import torch
 from pydantic import BaseModel, Field
 
 
@@ -29,3 +30,9 @@ class InstructionFormatSample(BaseModel):  # type: ignore [misc]
         default_factory=dict,
         description="Additional metadata related to the instruction",
     )
+
+
+class TrainingDataSample(TypedDict):
+    input_ids: torch.LongTensor
+    attention_mask: torch.LongTensor
+    labels: torch.LongTensor
