@@ -1,5 +1,5 @@
 import os
-from typing import TypedDict
+from typing import Any, TypedDict
 
 import torch
 from datasets import load_dataset
@@ -7,11 +7,10 @@ from torch.utils.data import Dataset
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from transformers.modeling_utils import PreTrainedModel
 from transformers.tokenization_utils import PreTrainedTokenizer
-from transformers.trainer import Trainer
-from transformers.training_args import TrainingArguments
+from trl import SFTConfig, SFTTrainer
 
 from ..data_formatter import BaseDataFormatter, DataFormatterRegistry
-from ..utils.type_utils import ConversationalFormatSample
+from ..utils.type_utils import ConversationMessage
 from .base import BaseTrainer
 
 
@@ -19,6 +18,12 @@ class _SftBatchSample(TypedDict):
     input_ids: torch.LongTensor
     attention_mask: torch.BoolTensor
     labels: torch.LongTensor
+
+
+class _ConversationalFormatSample(TypedDict):
+    input_ids: None
+    messages: list[ConversationMessage]
+    meta_data: dict[str, Any]
 
 
 class _SftDataset(Dataset):  # type: ignore [misc]
@@ -29,10 +34,14 @@ class _SftDataset(Dataset):  # type: ignore [misc]
     def __len__(self) -> int:
         return len(self.raw_dataset)
 
-    def __getitem__(self, idx: int) -> ConversationalFormatSample:
+    def __getitem__(self, idx: int) -> _ConversationalFormatSample:
         item = self.raw_dataset[idx]
         formatted_item = self.data_formatter.format_conversation(item)
-        return formatted_item
+        return _ConversationalFormatSample(
+            input_ids=None,
+            messages=formatted_item.messages,
+            meta_data=formatted_item.meta_data,
+        )
 
 
 class SftTrainer(BaseTrainer):
@@ -68,19 +77,19 @@ class SftTrainer(BaseTrainer):
             data_formatter=data_formatter,
         )
 
-    def collate_fn(self, batch: list[ConversationalFormatSample]) -> _SftBatchSample:
+    def collate_fn(self, batch: list[_ConversationalFormatSample]) -> _SftBatchSample:
         query_len_list: list[int] = []
         input_len_list: list[int] = []
 
         for sample in batch:
             input_ids = self.tokenizer.apply_chat_template(
-                conversation=sample.messages,
+                conversation=sample["messages"],
                 add_generation_prompt=False,
                 return_tensors="pt",
                 return_dict=False,
             )
             query_ids = self.tokenizer.apply_chat_template(
-                conversation=sample.messages[:-1],
+                conversation=sample["messages"][:-1],
                 add_generation_prompt=True,
                 return_tensors="pt",
                 return_dict=False,
@@ -89,7 +98,7 @@ class SftTrainer(BaseTrainer):
             input_len_list.append(input_ids.size(-1))
 
         batched_input_ids = self.tokenizer.apply_chat_template(
-            conversation=[sample.messages for sample in batch],
+            conversation=[sample["messages"] for sample in batch],
             add_generation_prompt=False,
             return_tensors="pt",
             return_dict=True,
@@ -116,10 +125,10 @@ class SftTrainer(BaseTrainer):
             and "wandb" in training_args["report_to"]
         ):
             os.environ["WANDB_PROJECT"] = project_name
-        training_config = TrainingArguments(
+        training_config = SFTConfig(
             **training_args,
         )
-        self.trainer = Trainer(
+        self.trainer = SFTTrainer(
             model=self.model,
             args=training_config,
             data_collator=self.collate_fn,
