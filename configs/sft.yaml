@@ -37,3 +37,5 @@ training_cfgs:
     adam_epsilon: 1.e-8
     lr_scheduler_type: cosine
     warmup_ratio: 0.05
+    # 跳过truncating
+    max_length: null

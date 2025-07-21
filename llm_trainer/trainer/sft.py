@@ -1,5 +1,5 @@
 import os
-from typing import Any, TypedDict
+from typing import TypedDict
 
 import torch
 from datasets import load_dataset
@@ -10,7 +10,7 @@ from transformers.tokenization_utils import PreTrainedTokenizer
 from trl import SFTConfig, SFTTrainer
 
 from ..data_formatter import BaseDataFormatter, DataFormatterRegistry
-from ..utils.type_utils import ConversationMessage
+from ..utils.type_utils import ConversationalFormatSample
 from .base import BaseTrainer
 
 
@@ -21,9 +21,9 @@ class _SftBatchSample(TypedDict):
 
 
 class _ConversationalFormatSample(TypedDict):
-    input_ids: None
-    messages: list[ConversationMessage]
-    meta_data: dict[str, Any]
+    # 使用 input_ids 作为键名，使SFTTrainer认为数据已经经过处理，从而跳过各种各样的格式检查
+    # TODO 这事实上利用了SFTTrainer的一个bug，可能会在未来的版本中被修复，我们需要设计一个更好的解决方案
+    input_ids: ConversationalFormatSample
 
 
 class _SftDataset(Dataset):  # type: ignore [misc]
@@ -37,11 +37,7 @@ class _SftDataset(Dataset):  # type: ignore [misc]
     def __getitem__(self, idx: int) -> _ConversationalFormatSample:
         item = self.raw_dataset[idx]
         formatted_item = self.data_formatter.format_conversation(item)
-        return _ConversationalFormatSample(
-            input_ids=None,
-            messages=formatted_item.messages,
-            meta_data=formatted_item.meta_data,
-        )
+        return _ConversationalFormatSample(input_ids=formatted_item)
 
 
 class SftTrainer(BaseTrainer):
@@ -83,13 +79,13 @@ class SftTrainer(BaseTrainer):
 
         for sample in batch:
             input_ids = self.tokenizer.apply_chat_template(
-                conversation=sample["messages"],
+                conversation=sample["input_ids"].messages,
                 add_generation_prompt=False,
                 return_tensors="pt",
                 return_dict=False,
             )
             query_ids = self.tokenizer.apply_chat_template(
-                conversation=sample["messages"][:-1],
+                conversation=sample["input_ids"].messages[:-1],
                 add_generation_prompt=True,
                 return_tensors="pt",
                 return_dict=False,
@@ -98,7 +94,7 @@ class SftTrainer(BaseTrainer):
             input_len_list.append(input_ids.size(-1))
 
         batched_input_ids = self.tokenizer.apply_chat_template(
-            conversation=[sample["messages"] for sample in batch],
+            conversation=[sample["input_ids"].messages for sample in batch],
             add_generation_prompt=False,
             return_tensors="pt",
             return_dict=True,
