@@ -111,3 +111,11 @@ class TrainingDataSample(TypedDict):
     input_ids: torch.LongTensor
     attention_mask: torch.LongTensor
     labels: torch.LongTensor
+
+
+class InstructionData(BaseModel):  # type: ignore [misc]
+    instruction: str = Field(..., description="The generated instruction")
+    meta_data: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Additional metadata related to the instruction",
+    )
