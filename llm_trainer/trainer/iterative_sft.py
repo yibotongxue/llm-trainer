@@ -10,6 +10,7 @@ from trl.trainer.utils import pad
 
 from ..batch_producer import get_batch_producer
 from ..custom_dataset.example_dataset import ExampleDataset
+from ..custom_dataset.iterative_sft_dataset import IterativeSftDataset
 from ..example_formatter import ExampleFormatterRegistry
 from ..utils.type_utils import TrainingDataSample
 from .base import BaseTrainer
@@ -101,12 +102,16 @@ class IteractiveSftTrainer(BaseTrainer):
         ]
         for batch in batches:
             training_data_samples = self.batch_producer.generate_batch(batch)
+            training_dataset = IterativeSftDataset(
+                sample_list=training_data_samples,
+                tokenizer=self.tokenizer,
+            )
             self.trainer.step(
-                input_ids=[sample["input_ids"] for sample in training_data_samples],
+                input_ids=[sample["input_ids"] for sample in training_dataset],
                 attention_mask=[
-                    sample["attention_mask"] for sample in training_data_samples
+                    sample["attention_mask"] for sample in training_dataset
                 ],
-                labels=[sample["labels"] for sample in training_data_samples],
+                labels=[sample["labels"] for sample in training_dataset],
             )
         self.trainer.save_model(
             output_dir=self.training_cfgs.get("output_dir", "output_model"),
