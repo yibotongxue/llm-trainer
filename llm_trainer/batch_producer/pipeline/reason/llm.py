@@ -1,0 +1,58 @@
+from typing import Any
+
+from ....inference import InferenceFactory
+from ....prompts import PromptBuilderRegistry
+from ....prompts.reason_generate import ReasonGeneratePromptBuilder
+from ....utils.logger import Logger
+from ....utils.type_utils import InferenceInput, InstructionData, ReasonData
+from .base import BaseReasonGenerator
+
+
+class LLMReasonGenerator(BaseReasonGenerator):
+    def __init__(self, reason_cfgs: dict[str, Any]):
+        super().__init__(reason_cfgs)
+        model_cfgs: dict[str, Any] = reason_cfgs["model_cfgs"]
+        inference_cfgs: dict[str, Any] = reason_cfgs["inference_cfgs"]
+        cache_cfgs: dict[str, Any] = reason_cfgs.get("cache_cfgs", None)
+        self.inference = InferenceFactory.get_inference_instance(
+            model_cfgs=model_cfgs,
+            inference_cfgs=inference_cfgs,
+            cache_cfgs=cache_cfgs,
+        )
+        self.logger = Logger(f"{self.__class__.__module__}.{self.__class__.__name__}")
+        self.prompt_builder_type = reason_cfgs["prompt_builder_type"]
+        prompt_builder = PromptBuilderRegistry.get_by_name(self.prompt_builder_type)()
+        if not isinstance(prompt_builder, ReasonGeneratePromptBuilder):
+            raise TypeError(
+                f"Expected ReasonGeneratePromptBuilder, got {type(prompt_builder).__name__}"
+            )
+
+    def generate_reasons(self, instructions: list[InstructionData]) -> list[ReasonData]:
+        inputs = [
+            InferenceInput.from_prompts(
+                prompt=instruction.instruction,
+                system_prompt="",
+            )
+            for instruction in instructions
+        ]
+        outputs = self.inference.generate(
+            inputs=inputs,
+            prompt_template=self.prompt_builder_type,
+            enable_tqdm=True,
+            tqdm_args={"desc": "Generating reasons"},
+        )
+        flatten_outputs = [output[0] for output in outputs]
+        for i, output in enumerate(flatten_outputs):
+            if output.extracted_answer is None:
+                self.logger.warning(
+                    f"The output {i}: {output} get None extracted answer."
+                )
+        return [
+            ReasonData(
+                instruction=instruction.instruction,
+                response=output.extracted_answer,
+                meta_data=output.model_dump(),
+            )
+            for instruction, output in zip(instructions, flatten_outputs)
+            if output.extracted_answer is not None
+        ]

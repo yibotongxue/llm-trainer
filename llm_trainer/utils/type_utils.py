@@ -119,3 +119,11 @@ class InstructionData(BaseModel):  # type: ignore [misc]
         default_factory=dict,
         description="Additional metadata related to the instruction",
     )
+
+
+class ReasonData(BaseModel):  # type: ignore [misc]
+    instruction: str = Field(..., description="The generated instruction")
+    response: str = Field(..., description="The generated response")
+    meta_data: dict[str, Any] = Field(
+        default_factory=dict, description="Additional metadata related to the reason"
+    )
