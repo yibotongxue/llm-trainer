@@ -1,7 +1,69 @@
+from __future__ import annotations
+
+from copy import deepcopy
 from typing import Any, Literal, TypedDict
 
 import torch
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
+
+
+class CustomBaseModel(BaseModel):  # type: ignore [misc]
+    model_config = ConfigDict(extra="allow")
+
+    def to_brief_dict(self) -> dict[str, Any]:
+        raw_dict = deepcopy(self.model_dump())
+        if "meta_data" in raw_dict:
+            raw_dict.pop("meta_data")
+        return raw_dict  # type: ignore [no-any-return]
+
+
+class InferenceInput(CustomBaseModel):
+    conversation: list[dict[str, Any]]
+    system_prompt: str
+    meta_data: dict[str, Any]
+
+    model_config = ConfigDict(extra="allow")
+
+    @classmethod
+    def from_prompts(
+        cls: type[InferenceInput], prompt: str, system_prompt: str = ""
+    ) -> InferenceInput:
+        return cls(
+            conversation=[
+                {
+                    "role": "user",
+                    "content": prompt,
+                }
+            ],
+            system_prompt=system_prompt,
+            meta_data={},
+        )
+
+    def get_raw_question(self) -> str:
+        if "raw_question" in self.meta_data:
+            return self.meta_data["raw_question"]  # type: ignore [no-any-return]
+        return self.conversation[-1]["content"]  # type: ignore [no-any-return]
+
+    def with_meta_data(self, meta_data: dict[str, Any]) -> InferenceInput:
+        new_meta_data = {
+            **self.meta_data,
+            **meta_data,
+        }
+        raw = {
+            **self.model_dump(),
+            "meta_data": new_meta_data,
+        }
+        return InferenceInput(**raw)
+
+
+class InferenceOutput(CustomBaseModel):
+    response: str
+    extracted_answer: str | None = None
+    input: dict[str, Any]
+    engine: str
+    meta_data: dict[str, Any]
+
+    model_config = ConfigDict(extra="allow")
 
 
 class ConversationMessage(BaseModel):  # type: ignore [misc]
