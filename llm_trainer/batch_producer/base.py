@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Any
 
-from ..utils.type_utils import BatchExample, TrainingDataSample
+from ..utils.type_utils import BatchExample, ConversationalFormatSample
 
 
 class BaseBatchProducer(ABC):
@@ -9,5 +9,7 @@ class BaseBatchProducer(ABC):
         self.batch_cfgs = batch_cfgs
 
     @abstractmethod
-    def generate_batch(self, example: list[BatchExample]) -> list[TrainingDataSample]:
+    def generate_batch(
+        self, example: list[BatchExample]
+    ) -> list[ConversationalFormatSample]:
         pass
