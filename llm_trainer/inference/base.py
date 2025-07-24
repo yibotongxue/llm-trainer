@@ -5,7 +5,7 @@ from collections.abc import Callable
 from contextlib import AbstractContextManager
 from typing import Any, ContextManager
 
-from ..prompts import BasePromptBuilder, PromptBuilderRegistry
+from ..prompts import PromptBuilderRegistry
 from ..utils.config import deepcopy_config
 from ..utils.tools import dict_to_hash
 from ..utils.type_utils import InferenceInput, InferenceOutput
@@ -48,20 +48,17 @@ class InferenceInterface(ABC):
         list[list[InferenceOutput]]
             每个输入对应的推理结果列表，内层列表包含重复次数的结果
         """
-        prompt_builder: BasePromptBuilder | None = None
+        prompt_builder = None
         if prompt_template is not None:
             prompt_builder = PromptBuilderRegistry.get_by_name(prompt_template)()
 
         if prompt_builder is not None:
             inputs = [
-                InferenceInput(**deepcopy_config(input.model_dump()))
+                prompt_builder.build_prompt(
+                    InferenceInput(**deepcopy_config(input.model_dump()))
+                )
                 for input in inputs
             ]
-            for input in inputs:
-                last_user_message = input.conversation[-1]
-                last_user_message["content"] = prompt_builder.build_prompt(
-                    last_user_message["content"]
-                )
         repeat_inputs: list[InferenceInput] = []
         for input in inputs:
             for repeat_idx in range(repeat_cnt):
@@ -71,9 +68,7 @@ class InferenceInterface(ABC):
         )
         if prompt_builder is not None:
             outputs = [
-                output.with_extracted_answer(
-                    prompt_builder.extract_answer(output.response)
-                )
+                output.with_extracted_answer(prompt_builder.extract_answer(output))
                 for output in outputs
             ]
         grouped_outputs = [

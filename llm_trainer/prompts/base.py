@@ -1,27 +1,32 @@
 from abc import ABC, abstractmethod
+from typing import Generic, TypeVar
+
+from ..utils.type_utils import InferenceInput, InferenceOutput
+
+AnswerType = TypeVar("AnswerType", bound=object, covariant=True)
 
 
-class BasePromptBuilder(ABC):
+class BasePromptBuilder(ABC, Generic[AnswerType]):
     @abstractmethod
-    def build_prompt(self, raw_prompt: str) -> str:
+    def build_prompt(self, raw_input: InferenceInput) -> InferenceInput:
         """
-        Build a prompt from the raw prompt string.
+        Build a prompt from the raw input data.
 
         Args:
-            raw_prompt (str): The raw prompt string.
+            raw_input (InferenceInput): The raw input data.
 
         Returns:
-            str: The built prompt.
+            InferenceInput: The constructed prompt.
         """
 
     @abstractmethod
-    def extract_answer(self, raw_output: str) -> str | None:
+    def extract_answer(self, raw_output: InferenceOutput) -> AnswerType | None:
         """
-        Extract the answer from the raw output string.
+        Extract the answer from the raw output data.
 
         Args:
-            raw_output (str): The raw output string.
+            raw_output (InferenceOutput): The raw output data.
 
         Returns:
-            str: The extracted answer.
+            AnswerType | None: The extracted answer or None if not applicable.
         """

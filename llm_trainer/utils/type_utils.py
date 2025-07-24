@@ -58,7 +58,7 @@ class InferenceInput(CustomBaseModel):
 
 class InferenceOutput(CustomBaseModel):
     response: str
-    extracted_answer: str | None = None
+    extracted_answer: Any | None = None
     input: dict[str, Any]
     engine: str
     meta_data: dict[str, Any]
@@ -102,9 +102,17 @@ class BatchExample(BaseModel):  # type: ignore [misc]
     failure_completion: str | None = Field(
         None, description="The actual output from the model"
     )
+    category: str | None = Field(None, description="The category of the example")
     meta_data: dict[str, Any] = Field(
         default_factory=dict, description="Additional metadata related to the example"
     )
+
+    def with_category(self, category: str) -> BatchExample:
+        raw = {
+            **self.model_dump(),
+            "category": category,
+        }
+        return BatchExample(**raw)
 
 
 class TrainingDataSample(TypedDict):
@@ -115,6 +123,7 @@ class TrainingDataSample(TypedDict):
 
 class InstructionData(BaseModel):  # type: ignore [misc]
     instruction: str = Field(..., description="The generated instruction")
+    category: str | None = Field(None, description="The category of the instruction")
     meta_data: dict[str, Any] = Field(
         default_factory=dict,
         description="Additional metadata related to the instruction",
@@ -123,6 +132,7 @@ class InstructionData(BaseModel):  # type: ignore [misc]
 
 class ReasonData(BaseModel):  # type: ignore [misc]
     instruction: str = Field(..., description="The generated instruction")
+    category: str | None = Field(None, description="The category of the instruction")
     response: str = Field(..., description="The generated response")
     meta_data: dict[str, Any] = Field(
         default_factory=dict, description="Additional metadata related to the reason"
