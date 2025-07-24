@@ -1,4 +1,3 @@
-from ast import literal_eval
 from typing import Any
 
 from ....inference import InferenceFactory
@@ -22,10 +21,12 @@ class LLMInstructionGenerator(BaseInstructionGenerator):
         )
         self.logger = Logger(f"{self.__class__.__module__}.{self.__class__.__name__}")
         self.prompt_builder_type = instruction_cfgs["prompt_builder_type"]
-        prompt_builder = PromptBuilderRegistry.get_by_name(self.prompt_builder_type)()
-        if not isinstance(prompt_builder, InstructionGeneratePromptBuilder):
+        self.prompt_builder = PromptBuilderRegistry.get_by_name(
+            self.prompt_builder_type
+        )()
+        if not isinstance(self.prompt_builder, InstructionGeneratePromptBuilder):
             raise TypeError(
-                f"Expected InstructionGeneratePromptBuilder, got {type(prompt_builder).__name__}"
+                f"Expected InstructionGeneratePromptBuilder, got {type(self.prompt_builder).__name__}"
             )
 
     def generate_instructions(
@@ -35,7 +36,7 @@ class LLMInstructionGenerator(BaseInstructionGenerator):
             InferenceInput.from_prompts(
                 prompt=exp.prompt,
                 system_prompt="",
-            )
+            ).with_meta_data(exp.model_dump())
             for exp in example
         ]
         outputs = self.inference.generate(
@@ -50,52 +51,16 @@ class LLMInstructionGenerator(BaseInstructionGenerator):
             extracted_answer = output.extracted_answer
             if extracted_answer is None:
                 continue
-            evaled_answer = literal_eval(extracted_answer)
-            if isinstance(evaled_answer, list):
-                for item in evaled_answer:
-                    instruction = self._parse_dict(item)
-                    if instruction is not None:
-                        instructions.append(instruction)
-            elif isinstance(evaled_answer, dict):
-                instruction = self._parse_dict(evaled_answer)
-                if instruction is not None:
-                    instructions.append(instruction)
-                    continue
-                for item in evaled_answer.values():
-                    instruction = self._parse_dict(item)
-                    if instruction is not None:
-                        instructions.append(instruction)
-            else:
+            if not isinstance(extracted_answer, list):
                 self.logger.warning(
-                    f"Expected list or dict, got {type(evaled_answer).__name__} for example {i}: {extracted_answer}"
+                    f"Expected list, got {type(extracted_answer).__name__} for example {i}: {extracted_answer}"
                 )
+                continue
+            for i, item in enumerate(extracted_answer):
+                if not isinstance(item, InstructionData):
+                    self.logger.warning(
+                        f"Expected InstructionData, got {type(item).__name__} for example {i}: {item}"
+                    )
+                    continue
+                instructions.append(item)
         return instructions
-
-    def _parse_dict(self, data: Any) -> InstructionData | None:
-        """
-        解析字典数据为InstructionData对象
-
-        参数
-        ----
-        data : Any
-            输入数据，可以是字典或其他类型
-
-        返回
-        ----
-        InstructionData | None
-            如果解析成功，返回InstructionData对象，否则返回None
-        """
-        if not isinstance(data, dict):
-            self.logger.warning(f"Expected {data} as dict, got {type(data).__name__}")
-            return None
-        if "instruction" not in data:
-            self.logger.warning(f"Missing 'instruction' key in data: {data}")
-            return None
-        try:
-            return InstructionData(
-                instruction=data["instruction"],
-                meta_data=data,
-            )
-        except Exception as e:
-            self.logger.warning(f"Error parsing data to InstructionData: {e}")
-            return None

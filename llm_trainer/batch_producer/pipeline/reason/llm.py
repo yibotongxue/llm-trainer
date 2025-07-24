@@ -47,12 +47,17 @@ class LLMReasonGenerator(BaseReasonGenerator):
                 self.logger.warning(
                     f"The output {i}: {output} get None extracted answer."
                 )
-        return [
-            ReasonData(
-                instruction=instruction.instruction,
-                response=output.extracted_answer,
-                meta_data=output.model_dump(),
-            )
-            for instruction, output in zip(instructions, flatten_outputs)
-            if output.extracted_answer is not None
-        ]
+        results: list[ReasonData] = []
+        for i, output in enumerate(flatten_outputs):
+            if output.extracted_answer is None:
+                self.logger.warning(
+                    f"Skipping example {i} due to None extracted answer: {output}"
+                )
+                continue
+            if not isinstance(output.extracted_answer, ReasonData):
+                self.logger.warning(
+                    f"Expected ReasonData, got {type(output.extracted_answer).__name__} for example {i}: {output.extracted_answer}"
+                )
+                continue
+            results.append(output.extracted_answer)
+        return results

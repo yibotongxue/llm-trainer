@@ -4,6 +4,7 @@ from ..utils.type_utils import BatchExample, ConversationalFormatSample
 from .base import BaseBatchProducer
 from .pipeline.filter import get_data_filter
 from .pipeline.instruction import get_instruction_generator
+from .pipeline.instruction_classifier import get_instruction_classifier
 from .pipeline.instruction_filter import get_instruction_filter
 from .pipeline.reason import get_reason_generator
 
@@ -11,12 +12,18 @@ from .pipeline.reason import get_reason_generator
 class DeliberativeReasonBatchProducer(BaseBatchProducer):
     def __init__(self, batch_cfgs: dict[str, Any]) -> None:
         super().__init__(batch_cfgs)
+        self.instruction_classifier_cfgs: dict[str, Any] = batch_cfgs.get(
+            "instruction_classifier_cfgs", {}
+        )
         self.instruction_cfgs: dict[str, Any] = batch_cfgs.get("instruction_cfgs", {})
         self.instruction_filter_cfgs: dict[str, Any] = batch_cfgs.get(
             "instruction_filter_cfgs", {}
         )
         self.reason_cfgs: dict[str, Any] = batch_cfgs.get("reason_cfgs", {})
         self.filter_cfgs: dict[str, Any] = batch_cfgs.get("filter_cfgs", {})
+        self.instruction_classifier = get_instruction_classifier(
+            self.instruction_classifier_cfgs
+        )
         self.instruction_generator = get_instruction_generator(self.instruction_cfgs)
         self.reason_generator = get_reason_generator(self.reason_cfgs)
         self.data_filter = get_data_filter(self.filter_cfgs)
@@ -25,7 +32,16 @@ class DeliberativeReasonBatchProducer(BaseBatchProducer):
     def generate_batch(
         self, example: list[BatchExample]
     ) -> list[ConversationalFormatSample]:
-        instructions = self.instruction_generator.generate_instructions(example)
+        example_instructions = [exp.prompt for exp in example]
+        categorys = self.instruction_classifier.classify_instruction(
+            example_instructions
+        )
+        examples_with_category = [
+            exp.with_category(category) for exp, category in zip(example, categorys)
+        ]
+        instructions = self.instruction_generator.generate_instructions(
+            examples_with_category
+        )
         filtered_instructions = self.instruction_filter.filter_instructions(
             instructions
         )
