@@ -25,6 +25,7 @@ _common:
       max_retry: 3
       max_workers: 8
       sleep_seconds: 30
+      timeout: 300
     cache_cfgs:
       cache_type: json_file
       cache_dir: ./cache/inference
@@ -40,6 +41,7 @@ _common:
       max_retry: 3
       max_workers: 8
       sleep_seconds: 30
+      timeout: 300
     cache_cfgs:
       cache_type: json_file
       cache_dir: ./cache/inference
@@ -53,7 +55,7 @@ model_cfgs:
 
 data_cfgs:
   data_path: UCSC-VLAA/STAR-1
-  data_size: 5
+  data_size: 200
   data_template: STAR-1
   load_configs:
     split: train
@@ -76,8 +78,7 @@ data_cfgs:
       prompt_builder_type: STAR-1
     filter_cfgs:
       filter_type: all_pass
-
-  example_batch_size: 5
+    example_batch_size: 5
 
 training_cfgs:
   project_name: star1
