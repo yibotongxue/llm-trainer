@@ -29,7 +29,7 @@ repos:
     rev: v3.19.1
     hooks:
       - id: pyupgrade
-        args: [--py311-plus]
+        args: [--py312-plus]
   - repo: https://github.com/PyCQA/autoflake
     rev: v2.3.1
     hooks:
@@ -40,7 +40,11 @@ repos:
     rev: 1.7.7
     hooks:
       - id: bandit
-        args: ["-c", ".bandit.yml"] # 使用配置文件
+        args: ["-c", ".bandit.yml"]
+        exclude: ^test/
+      - id: bandit
+        args: ["-c", ".bandit.yml", "-s", "B101"]
+        files: ^test/
 
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: v1.10.0
@@ -50,16 +54,12 @@ repos:
           --ignore-missing-imports,
           --strict,
           --show-error-codes,
-          --python-version=3.11
+          --python-version=3.12
         ]
-        exclude: ^tests/  # 通常排除测试目录
+        exclude: ^test/
 
   - repo: https://github.com/codespell-project/codespell
     rev: v2.3.0
     hooks:
       - id: codespell
         additional_dependencies: [".[toml]"]
-        exclude: |
-          (?x)(
-            ^docs/source/spelling_wordlist.txt$
-          )
