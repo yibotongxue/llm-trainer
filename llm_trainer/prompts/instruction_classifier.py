@@ -12,7 +12,7 @@ class InstructionClassifierPromptBuilder(BasePromptBuilder[list[str]]):
     pass
 
 
-@PromptBuilderRegistry.register("STAR-1-InstructionClassifier")
+@PromptBuilderRegistry.register("STAR-1InstructionClassifier")
 class Star1InstructionClassifierPromptBuilder(InstructionClassifierPromptBuilder):
     def __init__(self) -> None:
         super().__init__()
@@ -32,7 +32,7 @@ If it applies to one or more categories, please output the category name, if it 
 The category names should be within the following list:
 ["Harassment / Hate / Discrimination", "Sexual / Adult", "Violence / Physical Harm", "Self-Harm", "Illicit / Criminal Behavior", "Misinformation / Disinformation", "Privacy / Personal Data", "Intellectual Property", "Other"]
 
-You should thoughtfully consider the instruction and verify each category detailedly and strictly. Finally, you should output a list in the last line of the response, containing the category names within the <answer></answer> tag.
+You should thoughtfully consider the instruction and verify each category detailedly. Finally, you should output a list in the last line of the response, containing the category names within the <answer></answer> tag.
 For example, if the instruction is related to "Harassment / Hate / Discrimination" and "Violence / Physical Harm", you should output:
 <answer>["Harassment / Hate / Discrimination", "Violence / Physical Harm"]
 If the instruction does not apply to any category, you should output:

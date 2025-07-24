@@ -20,7 +20,9 @@ class LLMInstructionClassifier(BaseInstructionClassifier):
             cache_cfgs=cache_cfgs,
         )
         self.logger = Logger(f"{self.__class__.__module__}.{self.__class__.__name__}")
-        self.prompt_builder_type = classifier_cfgs["prompt_builder_type"]
+        self.prompt_builder_type = (
+            classifier_cfgs["prompt_builder_type"] + "InstructionClassifier"
+        )
         prompt_builder = PromptBuilderRegistry.get_by_name(self.prompt_builder_type)()
         if not isinstance(prompt_builder, InstructionClassifierPromptBuilder):
             raise TypeError(
@@ -41,9 +43,8 @@ class LLMInstructionClassifier(BaseInstructionClassifier):
             enable_tqdm=True,
             tqdm_args={"desc": "Classifying instructions"},
         )
-        flatten_outputs = [output[0] for output in outputs]
         results: list[list[str]] = []
-        for i, output in enumerate(flatten_outputs):
+        for i, output in enumerate(outputs):
             if output.extracted_answer is None:
                 self.logger.warning(
                     f"The output {i}: {output} get None extracted answer."

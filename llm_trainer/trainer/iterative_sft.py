@@ -16,7 +16,7 @@ from ..utils.type_utils import TrainingDataSample
 from .base import BaseTrainer
 
 
-class IteractiveSftTrainer(BaseTrainer):
+class IterativeSftTrainer(BaseTrainer):
     def init_model(self) -> None:
         model_name_or_path = self.model_cfgs["model_path"]
         model_args = self.model_cfgs.get("model_args", {})
@@ -42,9 +42,10 @@ class IteractiveSftTrainer(BaseTrainer):
         load_cfgs = self.data_cfgs.get("load_configs", {})
         raw_dataset = load_dataset(data_path, **load_cfgs)
         data_size = self.data_cfgs.get("data_size", None)
+        raw_dataset = raw_dataset.shuffle()
         if data_size is not None:
             raw_dataset = raw_dataset.select(range(int(data_size)))
-        template = self.data_cfgs.get("template", "default")
+        template = self.data_cfgs.get("data_template", "default")
         example_formatter = ExampleFormatterRegistry.get_by_name(template)()
         self.example_dataset = ExampleDataset(
             raw_dataset=raw_dataset, example_formatter=example_formatter
@@ -97,11 +98,12 @@ class IteractiveSftTrainer(BaseTrainer):
 
     def train(self) -> None:
         batches = [
-            self.example_batch_size[i : i + self.example_batch_size]
+            self.example_dataset[i : i + self.example_batch_size]
             for i in range(0, len(self.example_dataset), self.example_batch_size)
         ]
         for batch in batches:
             training_data_samples = self.batch_producer.generate_batch(batch)
+
             training_dataset = IterativeSftDataset(
                 sample_list=training_data_samples,
                 tokenizer=self.tokenizer,

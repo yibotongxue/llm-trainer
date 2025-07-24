@@ -22,11 +22,10 @@ class InferenceInterface(ABC):
         self,
         inputs: list[InferenceInput],
         *,
-        repeat_cnt: int = 1,
         prompt_template: str | None = None,
         enable_tqdm: bool = False,
         tqdm_args: dict[str, Any] | None = None,
-    ) -> list[list[InferenceOutput]]:
+    ) -> list[InferenceOutput]:
         """
         生成推理结果
 
@@ -59,22 +58,13 @@ class InferenceInterface(ABC):
                 )
                 for input in inputs
             ]
-        repeat_inputs: list[InferenceInput] = []
-        for input in inputs:
-            for repeat_idx in range(repeat_cnt):
-                repeat_inputs.append(input.with_repeat_idx(repeat_idx))
-        outputs = self._generate(
-            repeat_inputs, enable_tqdm=enable_tqdm, tqdm_args=tqdm_args
-        )
+        outputs = self._generate(inputs, enable_tqdm=enable_tqdm, tqdm_args=tqdm_args)
         if prompt_builder is not None:
             outputs = [
                 output.with_extracted_answer(prompt_builder.extract_answer(output))
                 for output in outputs
             ]
-        grouped_outputs = [
-            outputs[i : i + repeat_cnt] for i in range(0, len(outputs), repeat_cnt)
-        ]
-        return grouped_outputs
+        return outputs
 
     @abstractmethod
     def _generate(

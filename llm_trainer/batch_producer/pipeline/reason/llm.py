@@ -20,7 +20,7 @@ class LLMReasonGenerator(BaseReasonGenerator):
             cache_cfgs=cache_cfgs,
         )
         self.logger = Logger(f"{self.__class__.__module__}.{self.__class__.__name__}")
-        self.prompt_builder_type = reason_cfgs["prompt_builder_type"]
+        self.prompt_builder_type = reason_cfgs["prompt_builder_type"] + "ReasonGenerate"
         prompt_builder = PromptBuilderRegistry.get_by_name(self.prompt_builder_type)()
         if not isinstance(prompt_builder, ReasonGeneratePromptBuilder):
             raise TypeError(
@@ -32,7 +32,7 @@ class LLMReasonGenerator(BaseReasonGenerator):
             InferenceInput.from_prompts(
                 prompt=instruction.instruction,
                 system_prompt="",
-            )
+            ).with_meta_data({"category": instruction.category})
             for instruction in instructions
         ]
         outputs = self.inference.generate(
@@ -41,14 +41,13 @@ class LLMReasonGenerator(BaseReasonGenerator):
             enable_tqdm=True,
             tqdm_args={"desc": "Generating reasons"},
         )
-        flatten_outputs = [output[0] for output in outputs]
-        for i, output in enumerate(flatten_outputs):
+        for i, output in enumerate(outputs):
             if output.extracted_answer is None:
                 self.logger.warning(
                     f"The output {i}: {output} get None extracted answer."
                 )
         results: list[ReasonData] = []
-        for i, output in enumerate(flatten_outputs):
+        for i, output in enumerate(outputs):
             if output.extracted_answer is None:
                 self.logger.warning(
                     f"Skipping example {i} due to None extracted answer: {output}"

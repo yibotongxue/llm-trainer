@@ -120,6 +120,5 @@ class CachedInference(InferenceInterface):
             "system_prompt": inference_input.system_prompt,
             "conversation": inference_input.conversation,
             "cfgs_hash": self.inference.inference_essential_cfgs_hash,
-            "repeat_idx": inference_input.repeat_idx,
         }
         return dict_to_hash(key_message)

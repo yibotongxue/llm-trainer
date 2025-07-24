@@ -20,7 +20,9 @@ class LLMInstructionGenerator(BaseInstructionGenerator):
             cache_cfgs=cache_cfgs,
         )
         self.logger = Logger(f"{self.__class__.__module__}.{self.__class__.__name__}")
-        self.prompt_builder_type = instruction_cfgs["prompt_builder_type"]
+        self.prompt_builder_type = (
+            instruction_cfgs["prompt_builder_type"] + "InstructionGenerate"
+        )
         self.prompt_builder = PromptBuilderRegistry.get_by_name(
             self.prompt_builder_type
         )()
@@ -36,7 +38,11 @@ class LLMInstructionGenerator(BaseInstructionGenerator):
             InferenceInput.from_prompts(
                 prompt=exp.prompt,
                 system_prompt="",
-            ).with_meta_data(exp.model_dump())
+            ).with_meta_data(
+                {
+                    "category": exp.category,
+                }
+            )
             for exp in example
         ]
         outputs = self.inference.generate(
@@ -45,9 +51,8 @@ class LLMInstructionGenerator(BaseInstructionGenerator):
             enable_tqdm=True,
             tqdm_args={"desc": "Generating instructions"},
         )
-        flatten_outputs = [output[0] for output in outputs]
         instructions: list[InstructionData] = []
-        for i, output in enumerate(flatten_outputs):
+        for i, output in enumerate(outputs):
             extracted_answer = output.extracted_answer
             if extracted_answer is None:
                 continue

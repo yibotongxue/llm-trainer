@@ -5,10 +5,14 @@ description = "大模型训练器"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "anthropic>=0.58.2",
     "deepspeed==0.15.4",
+    "google-genai>=1.26.0",
     "numpy==2.2",
+    "openai>=1.97.0",
     "pyarrow==20.0.0",
     "pydantic>=2.11.7",
+    "redis>=6.2.0",
     "torch==2.6.0",
     "trl>=0.19.1",
     "wandb>=0.21.0",

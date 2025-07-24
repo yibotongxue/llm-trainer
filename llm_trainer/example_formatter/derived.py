@@ -20,7 +20,7 @@ class DefaultExampleFormatter(BaseExampleFormatter):
         )
 
 
-@ExampleFormatterRegistry.register("star1")
+@ExampleFormatterRegistry.register("STAR-1")
 class Star1ExampleFormatter(BaseExampleFormatter):
     def format_example(self, raw_sample: dict[str, Any]) -> BatchExample:
         return BatchExample(

@@ -1,0 +1,108 @@
+_common:
+  QwenPlus: &QwenPlus
+    model_cfgs:
+      inference_backend: api
+      model_sdk_type: openai
+      model_name_or_path: qwen-plus
+      api_key_name: QWEN_API_KEY
+    inference_cfgs:
+      max_tokens: 8192
+      max_retry: 3
+      max_workers: 8
+      sleep_seconds: 30
+    cache_cfgs:
+      cache_type: json_file
+      cache_dir: ./cache/inference
+      flush_threshold: 10
+  DeepSeekChat: &DeepSeekChat
+    model_cfgs:
+      inference_backend: api
+      model_sdk_type: openai
+      model_name_or_path: deepseek-chat
+      api_key_name: DEEPSEEK_API_KEY
+    inference_cfgs:
+      max_tokens: 8192
+      max_retry: 3
+      max_workers: 8
+      sleep_seconds: 30
+    cache_cfgs:
+      cache_type: json_file
+      cache_dir: ./cache/inference
+      flush_threshold: 10
+  DeepSeekR1: &DeepSeekR1
+    model_cfgs:
+      inference_backend: api
+      model_sdk_type: openai
+      model_name_or_path: deepseek-reasoner
+      api_key_name: DEEPSEEK_API_KEY
+    inference_cfgs:
+      max_tokens: 8192
+      max_retry: 3
+      max_workers: 8
+      sleep_seconds: 30
+    cache_cfgs:
+      cache_type: json_file
+      cache_dir: ./cache/inference
+      flush_threshold: 10
+
+model_cfgs:
+  model_path: deepseek-ai/DeepSeek-R1-Distill-Qwen-7B
+  model_args: {}
+  tokenizer_args:
+    model_max_length: 8192
+
+data_cfgs:
+  data_path: UCSC-VLAA/STAR-1
+  data_size: 5
+  data_template: STAR-1
+  load_configs:
+    split: train
+    num_proc: 8
+  batch_configs:
+    batch_producer_type: deliberative_reason
+    instruction_classifier_cfgs:
+      <<: *QwenPlus
+      classifier_type: llm
+      prompt_builder_type: STAR-1
+    instruction_cfgs:
+      <<: *QwenPlus
+      instruction_generator_type: llm
+      prompt_builder_type: Simple
+    instruction_filter_cfgs:
+      instruction_filter_type: all_pass
+    reason_cfgs:
+      reason_generator_type: llm
+      <<: *QwenPlus
+      prompt_builder_type: STAR-1
+    filter_cfgs:
+      filter_type: all_pass
+
+  example_batch_size: 5
+
+training_cfgs:
+  project_name: star1
+  training_args:
+    output_dir: ./output/sft
+    per_device_train_batch_size: 1
+    logging_strategy: steps
+    logging_steps: 10
+    save_strategy: epoch
+    gradient_accumulation_steps: 2
+    torch_empty_cache_steps: 1
+    num_train_epochs: 5
+    max_grad_norm: 1.0
+    bf16: true
+    fp16: false
+    dataloader_num_workers: 8
+    run_name: sft
+    report_to: [wandb]
+    torch_compile: true
+    learning_rate: 5.e-5
+    weight_decay: 5.e-6
+    adam_beta1: 0.9
+    adam_beta2: 0.99
+    adam_epsilon: 1.e-8
+    lr_scheduler_type: cosine
+    warmup_ratio: 0.05
+    # 跳过truncating
+    max_length: null

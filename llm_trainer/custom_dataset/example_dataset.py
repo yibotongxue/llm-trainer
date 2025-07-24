@@ -14,6 +14,8 @@ class ExampleDataset(Dataset):  # type: ignore [misc]
     def __len__(self) -> int:
         return len(self.raw_dataset)
 
-    def __getitem__(self, idx: int) -> BatchExample:
+    def __getitem__(self, idx: int | slice) -> BatchExample | list[BatchExample]:
+        if isinstance(idx, slice):
+            return [self.__getitem__(i) for i in range(*idx.indices(len(self)))]  # type: ignore [misc]
         raw_sample = self.raw_dataset[idx]
         return self.example_formatter.format_example(raw_sample)

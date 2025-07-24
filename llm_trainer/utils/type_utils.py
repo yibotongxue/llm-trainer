@@ -65,6 +65,13 @@ class InferenceOutput(CustomBaseModel):
 
     model_config = ConfigDict(extra="allow")
 
+    def with_extracted_answer(self, extracted_answer: str | None) -> InferenceOutput:
+        raw = {
+            **self.model_dump(),
+            "extracted_answer": extracted_answer,
+        }
+        return InferenceOutput(**raw)
+
 
 class ConversationMessage(BaseModel):  # type: ignore [misc]
     content: str = Field(..., description="The content of the message")
@@ -132,8 +139,26 @@ class InstructionData(BaseModel):  # type: ignore [misc]
 
 class ReasonData(BaseModel):  # type: ignore [misc]
     instruction: str = Field(..., description="The generated instruction")
-    category: str | None = Field(None, description="The category of the instruction")
+    category: list[str] | None = Field(
+        None, description="The category of the instruction"
+    )
     response: str = Field(..., description="The generated response")
     meta_data: dict[str, Any] = Field(
         default_factory=dict, description="Additional metadata related to the reason"
     )
+
+
+def to_dict(obj: BaseModel | dict[str, Any]) -> dict[str, Any]:
+
+    def _to_dict(
+        obj: BaseModel | dict[str, Any] | list[Any] | Any
+    ) -> dict[str, Any] | list[Any] | Any:
+        if isinstance(obj, BaseModel):
+            return _to_dict(obj.model_dump())
+        if isinstance(obj, dict):
+            return {k: _to_dict(v) for k, v in obj.items()}
+        if isinstance(obj, list):
+            return [_to_dict(e) for e in obj]
+        return obj
+
+    return _to_dict(obj)  # type: ignore [return-value]

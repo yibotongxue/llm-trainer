@@ -1,4 +1,8 @@
+import json
 import re
+from typing import Any
+
+from .logger import app_logger
 
 
 def extract_after_last_think_tag(s: str) -> str:
@@ -27,3 +31,17 @@ def extract_last_tag_content(s: str, tag_name: str) -> str | None:
     pattern = rf"<{tag_name}[^>]*>(.*?)</{tag_name}>"
     matches = re.findall(pattern, s, re.DOTALL)
     return matches[-1] if matches else None
+
+
+def extract_json_dict(s: str) -> dict[str, Any] | list[dict[str, Any]] | None:
+    pattern = r"```(?:[^\n]*)?\n([\s\S]*?)```"
+    matches = re.findall(pattern, s)
+    if not matches or len(matches) < 1:
+        app_logger.error(f"No code block found in the string: {s}")
+        return None
+    json_block = matches[-1].strip()
+    try:
+        return json.loads(json_block)  # type: ignore [no-any-return]
+    except json.JSONDecodeError:
+        app_logger.error(f"Failed to parse JSON from the code block: {json_block}")
+        return None

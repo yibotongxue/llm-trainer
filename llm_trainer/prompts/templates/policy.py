@@ -146,3 +146,26 @@ Prevent the unauthorized sharing or generation of proprietary or copyrighted mat
 2. **Summary Instead**: When possible, the AI can offer **summaries** of copyrighted materials or direct the user to public resources.
 3. **Citation**: Provide references or citations to help the user find original content lawfully.
 """
+
+CATEGORY_LIST = [
+    "Harassment / Hate / Discrimination",
+    "Sexual / Adult",
+    "Violence / Physical Harm",
+    "Self-Harm",
+    "Illicit / Criminal Behavior",
+    "Misinformation / Disinformation",
+    "Privacy / Personal Data",
+    "Intellectual Property",
+    "Other",
+]
+
+POLICY_MAPPER = {
+    "Harassment / Hate / Discrimination": POLICY_HARASSMENT,
+    "Sexual / Adult": POLICY_SEXUAL,
+    "Violence / Physical Harm": POLICY_VIOLENCE,
+    "Self-Harm": POLICY_SELF_HARM,
+    "Illicit / Criminal Behavior": POLICY_ILLICIT,
+    "Misinformation / Disinformation": POLICY_MISINFORMATION,
+    "Privacy / Personal Data": POLICY_PRIVACY,
+    "Intellectual Property": POLICY_INTERLECTUAL,
+}
