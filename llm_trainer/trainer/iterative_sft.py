@@ -12,6 +12,7 @@ from ..batch_producer import get_batch_producer
 from ..custom_dataset.example_dataset import ExampleDataset
 from ..custom_dataset.iterative_sft_dataset import IterativeSftDataset
 from ..example_formatter import ExampleFormatterRegistry
+from ..utils.multi_process import get_rank
 from ..utils.type_utils import TrainingDataSample
 from .base import BaseTrainer
 
@@ -42,7 +43,8 @@ class IterativeSftTrainer(BaseTrainer):
         load_cfgs = self.data_cfgs.get("load_configs", {})
         raw_dataset = load_dataset(data_path, **load_cfgs)
         data_size = self.data_cfgs.get("data_size", None)
-        raw_dataset = raw_dataset.shuffle()
+        shuffle_seed = self.data_cfgs.get("shuffle_seed", 42)
+        raw_dataset = raw_dataset.shuffle(seed=shuffle_seed)
         if data_size is not None:
             raw_dataset = raw_dataset.select(range(int(data_size)))
         template = self.data_cfgs.get("data_template", "default")
@@ -101,13 +103,14 @@ class IterativeSftTrainer(BaseTrainer):
             self.example_dataset[i : i + self.example_batch_size]
             for i in range(0, len(self.example_dataset), self.example_batch_size)
         ]
-        for batch in batches:
-            training_data_samples = self.batch_producer.generate_batch(batch)
+        for i, batch in enumerate(batches):
+            if get_rank() == 0:
+                training_data_samples = self.batch_producer.generate_batch(batch)
 
-            training_dataset = IterativeSftDataset(
-                sample_list=training_data_samples,
-                tokenizer=self.tokenizer,
-            )
+                training_dataset = IterativeSftDataset(
+                    sample_list=training_data_samples,
+                    tokenizer=self.tokenizer,
+                )
             self.trainer.step(
                 input_ids=[sample["input_ids"] for sample in training_dataset],
                 attention_mask=[
@@ -115,6 +118,11 @@ class IterativeSftTrainer(BaseTrainer):
                 ],
                 labels=[sample["labels"] for sample in training_dataset],
             )
-        self.trainer.save_model(
-            output_dir=self.training_cfgs.get("output_dir", "output_model"),
-        )
+            if (i + 1) % 50 == 0 and get_rank() == 0:
+                self.trainer.save_model(
+                    output_dir=f"{self.training_cfgs.get('output_dir', 'output_model')}/checkpoint-{i + 1}",
+                )
+        if get_rank() == 0:
+            self.trainer.save_model(
+                output_dir=self.training_cfgs.get("output_dir", "output_model"),
+            )

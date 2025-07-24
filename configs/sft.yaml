@@ -1,5 +1,5 @@
 model_cfgs:
-  model_path: deepseek-ai/DeepSeek-R1-Distill-Qwen-7B
+  model_path: deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B
   model_args: {}
   tokenizer_args:
     model_max_length: 8192
@@ -29,7 +29,7 @@ training_cfgs:
     dataloader_num_workers: 8
     run_name: sft
     report_to: [wandb]
-    torch_compile: true
+    torch_compile: false
     learning_rate: 5.e-5
     weight_decay: 5.e-6
     adam_beta1: 0.9
