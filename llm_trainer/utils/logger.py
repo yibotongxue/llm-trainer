@@ -87,34 +87,42 @@ class Logger:
         # 添加异常捕获钩子
         sys.excepthook = self.handle_exception
 
+    @rank_zero_only
     def handle_exception(self, exc_type, exc_value, exc_traceback) -> None:  # type: ignore [no-untyped-def]
         """捕获未处理的异常并记录到日志"""
         self.logger.error("未处理的异常", exc_info=(exc_type, exc_value, exc_traceback))
 
+    @rank_zero_only
     def debug(self, msg: str, extra: dict[str, Any] | None = None) -> None:
         """记录调试信息"""
         self.logger.debug(msg, extra=extra)
 
+    @rank_zero_only
     def info(self, msg: str, extra: dict[str, Any] | None = None) -> None:
         """记录一般信息"""
         self.logger.info(msg, extra=extra)
 
+    @rank_zero_only
     def warning(self, msg: str, extra: dict[str, Any] | None = None) -> None:
         """记录警告信息"""
         self.logger.warning(msg, extra=extra)
 
+    @rank_zero_only
     def error(self, msg: str, extra: dict[str, Any] | None = None) -> None:
         """记录错误信息"""
         self.logger.error(msg, extra=extra)
 
+    @rank_zero_only
     def critical(self, msg: str, extra: dict[str, Any] | None = None) -> None:
         """记录严重错误信息"""
         self.logger.critical(msg, extra=extra)
 
+    @rank_zero_only
     def exception(self, msg: str, extra: dict[str, Any] | None = None) -> None:
         """记录异常信息（包含堆栈跟踪）"""
         self.logger.exception(msg, extra=extra)
 
+    @rank_zero_only
     def log(self, level: int, msg: str, extra: dict[str, Any] | None = None) -> None:
         """通用日志记录方法"""
         self.logger.log(level, msg, extra=extra)

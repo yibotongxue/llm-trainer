@@ -1,5 +1,7 @@
 import argparse
 
+import deepspeed
+
 from llm_trainer.trainer.iterative_sft import IterativeSftTrainer
 from llm_trainer.utils.config import (
     deepcopy_config,
@@ -7,10 +9,7 @@ from llm_trainer.utils.config import (
     update_config_with_unparsed_args,
 )
 
-# import deepspeed
-
-
-# deepspeed.ops.op_builder.CPUAdamBuilder().load()
+deepspeed.ops.op_builder.CPUAdamBuilder().load()
 
 
 def main() -> None:
