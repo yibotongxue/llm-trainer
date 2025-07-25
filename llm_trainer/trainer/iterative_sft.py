@@ -12,7 +12,6 @@ from ..batch_producer import get_batch_producer
 from ..custom_dataset.example_dataset import ExampleDataset
 from ..custom_dataset.iterative_sft_dataset import IterativeSftDataset
 from ..example_formatter import ExampleFormatterRegistry
-from ..utils.multi_process import get_rank
 from ..utils.type_utils import TrainingDataSample
 from .base import BaseTrainer
 
@@ -91,10 +90,11 @@ class IterativeSftTrainer(BaseTrainer):
             and "wandb" in training_args["report_to"]
         ):
             os.environ["WANDB_PROJECT"] = project_name
-        training_config = IterativeSFTConfig(**training_args)
+        self.save_steps = self.training_cfgs.get("save_steps", 10)
+        self.training_config = IterativeSFTConfig(**training_args)
         self.trainer = IterativeSFTTrainer(
             model=self.model,
-            args=training_config,
+            args=self.training_config,
             data_collator=self.collate_fn,
         )
 
@@ -104,13 +104,12 @@ class IterativeSftTrainer(BaseTrainer):
             for i in range(0, len(self.example_dataset), self.example_batch_size)
         ]
         for i, batch in enumerate(batches):
-            if get_rank() == 0:
-                training_data_samples = self.batch_producer.generate_batch(batch)
+            training_data_samples = self.batch_producer.generate_batch(batch)
+            training_dataset = IterativeSftDataset(
+                sample_list=training_data_samples,
+                tokenizer=self.tokenizer,
+            )
 
-                training_dataset = IterativeSftDataset(
-                    sample_list=training_data_samples,
-                    tokenizer=self.tokenizer,
-                )
             self.trainer.step(
                 input_ids=[sample["input_ids"] for sample in training_dataset],
                 attention_mask=[
@@ -118,11 +117,28 @@ class IterativeSftTrainer(BaseTrainer):
                 ],
                 labels=[sample["labels"] for sample in training_dataset],
             )
-            if (i + 1) % 50 == 0 and get_rank() == 0:
-                self.trainer.save_model(
-                    output_dir=f"{self.training_cfgs.get('output_dir', 'output_model')}/checkpoint-{i + 1}",
+            if (i + 1) % self.save_steps == 0:
+                self.save_model(
+                    step=f"step-{i}",
+                    tag=f"step-{i}",
                 )
-        if get_rank() == 0:
-            self.trainer.save_model(
-                output_dir=self.training_cfgs.get("output_dir", "output_model"),
-            )
+        self.save_model(
+            step="end",
+            tag="end",
+        )
+
+    def save_model(self, step: str, tag: str) -> None:
+        if not self.training_config.output_dir:
+            raise ValueError("Output directory is not set in training arguments.")
+        if not os.path.exists(self.training_config.output_dir):
+            os.makedirs(self.training_config.output_dir)
+
+        save_dir = f"{self.training_config.output_dir}/{step}"
+
+        self.trainer.model.save_checkpoint(
+            save_dir=save_dir,
+            tag=tag,
+            client_state={},
+        )
+        self.tokenizer.save_pretrained(save_dir)
+        self.model.config.save_pretrained(save_dir)
