@@ -5,7 +5,7 @@ from datasets import load_dataset
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from transformers.modeling_utils import PreTrainedModel
 from transformers.tokenization_utils import PreTrainedTokenizer
-from trl.trainer import IterativeSFTConfig, IterativeSFTTrainer
+from trl.trainer import IterativeSFTConfig
 from trl.trainer.utils import pad
 
 from ..batch_producer import get_batch_producer
@@ -14,6 +14,9 @@ from ..custom_dataset.iterative_sft_dataset import IterativeSftDataset
 from ..example_formatter import ExampleFormatterRegistry
 from ..utils.type_utils import TrainingDataSample
 from .base import BaseTrainer
+from .custom_trl.iterative_sft_trainer import (  # type: ignore [attr-defined]
+    CustomIterativeSFTTrainer,
+)
 
 
 class IterativeSftTrainer(BaseTrainer):
@@ -92,7 +95,7 @@ class IterativeSftTrainer(BaseTrainer):
             os.environ["WANDB_PROJECT"] = project_name
         self.save_steps = self.training_cfgs.get("save_steps", 10)
         self.training_config = IterativeSFTConfig(**training_args)
-        self.trainer = IterativeSFTTrainer(
+        self.trainer = CustomIterativeSFTTrainer(
             model=self.model,
             args=self.training_config,
             data_collator=self.collate_fn,
