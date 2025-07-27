@@ -20,6 +20,7 @@ from .custom_trl.iterative_sft_trainer import (  # type: ignore [attr-defined]
 
 
 class IterativeSftTrainer(BaseTrainer):
+
     def init_model(self) -> None:
         model_name_or_path = self.model_cfgs["model_path"]
         model_args = self.model_cfgs.get("model_args", {})

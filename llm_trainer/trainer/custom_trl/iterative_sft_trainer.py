@@ -43,6 +43,9 @@ from trl.trainer.iterative_sft_config import IterativeSFTConfig
 
 
 class CustomIterativeSFTTrainer(Trainer):
+
+    _tag_names = ["custom", "iterative-sft"]
+
     def __init__(
         self,
         model: str | PreTrainedModel,
