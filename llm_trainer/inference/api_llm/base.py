@@ -105,3 +105,22 @@ class BaseApiLLMInference(BaseInference):
         ----
         此方法必须由子类实现
         """
+
+    def _get_inference_essential_cfgs(self) -> dict[str, Any]:
+        """
+        获取推理配置中必要的部分
+
+        返回
+        ----
+        dict[str, Any]
+            包含必要推理配置的字典
+        """
+        essential_inference_cfgs = self.inference_cfgs.copy()
+        essential_inference_cfgs.pop("max_retry", None)
+        essential_inference_cfgs.pop("max_workers", None)
+        essential_inference_cfgs.pop("sleep_seconds", None)
+        essential_cfgs = {
+            "model_cfgs": self.model_cfgs,
+            "inference_cfgs": essential_inference_cfgs,
+        }
+        return essential_cfgs

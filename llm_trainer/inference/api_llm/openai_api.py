@@ -28,7 +28,7 @@ class OpenAIApiLLMInference(BaseApiLLMInference):
 
     _BASE_URL_MAP: dict[str, str] = {
         "deepseek-chat": _DEEPSEEK_BASE_URL,
-        "deepseek_reasoner": _DEEPSEEK_BASE_URL,
+        "deepseek-reasoner": _DEEPSEEK_BASE_URL,
         "qwen-max": _QWEN_BASE_URL,
         "qwen-plus": _QWEN_BASE_URL,
     }
