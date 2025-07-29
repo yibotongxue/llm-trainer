@@ -36,6 +36,11 @@ class SftTrainer(BaseTrainer):
         )
         if self.tokenizer.pad_token is None:
             self.tokenizer.pad_token = self.tokenizer.eos_token
+        if self.tokenizer.chat_template is not None:
+            remove_text = """{% if '</think>' in content %}{% set content = content.split('</think>')[-1] %}{% endif %}"""
+            self.tokenizer.chat_template = self.tokenizer.chat_template.replace(
+                remove_text.strip(), ""
+            )
 
     def init_datasets(self) -> None:
         data_path = self.data_cfgs["data_path"]

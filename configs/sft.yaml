@@ -1,6 +1,7 @@
 model_cfgs:
   model_path: deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B
   model_args: {}
+  tokenizer_path: UCSC-VLAA/STAR1-R1-Distill-1.5B
   tokenizer_args:
     model_max_length: 8192
 
