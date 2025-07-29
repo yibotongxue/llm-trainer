@@ -25,9 +25,12 @@ class SftTrainer(BaseTrainer):
         self.model.config.use_cache = (
             False  # Disable cache for generation during training
         )
+        tokenizer_name_or_path = self.model_cfgs.get(
+            "tokenizer_path", model_name_or_path
+        )
         tokenizer_args = self.model_cfgs.get("tokenizer_args", {})
         self.tokenizer: PreTrainedTokenizer = AutoTokenizer.from_pretrained(
-            model_name_or_path,
+            tokenizer_name_or_path,
             use_fast=True,
             **tokenizer_args,
         )

@@ -11,13 +11,9 @@ _common:
       max_workers: 8
       sleep_seconds: 30
     cache_cfgs:
-      cache_type: redis
-      json_dir: ./cache/inference
-      redis_cfgs:
-        host: localhost
-        port: 6379
-        db: 0
-        password: null
+      cache_type: json_file
+      cache_dir: ./cache/r1_inference
+      flush_threshold: 10
   DeepSeekChat: &DeepSeekChat
     model_cfgs:
       inference_backend: api
@@ -31,13 +27,9 @@ _common:
       sleep_seconds: 30
       timeout: 300
     cache_cfgs:
-      cache_type: redis
-      json_dir: ./cache/inference
-      redis_cfgs:
-        host: localhost
-        port: 6379
-        db: 0
-        password: null
+      cache_type: json_file
+      cache_dir: ./cache/r1_inference
+      flush_threshold: 10
   DeepSeekR1: &DeepSeekR1
     model_cfgs:
       inference_backend: api
@@ -47,21 +39,18 @@ _common:
     inference_cfgs:
       max_tokens: 8192
       max_retry: 3
-      max_workers: 8
+      max_workers: 32
       sleep_seconds: 30
       timeout: 300
     cache_cfgs:
-      cache_type: redis
-      json_dir: ./cache/inference
-      redis_cfgs:
-        host: localhost
-        port: 6379
-        db: 0
-        password: null
+      cache_type: json_file
+      cache_dir: ./cache/r1_inference
+      flush_threshold: 10
 
 model_cfgs:
   model_path: deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B
   model_args: {}
+  tokenizer_path: UCSC-VLAA/STAR1-R1-Distill-1.5B
   tokenizer_args:
     model_max_length: 8192
 
@@ -87,7 +76,7 @@ data_cfgs:
       instruction_filter_type: all_pass
     reason_cfgs:
       reason_generator_type: llm
-      <<: *QwenPlus
+      <<: *DeepSeekR1
       prompt_builder_type: STAR-1
     filter_cfgs:
       filter_type: all_pass
