@@ -53,10 +53,29 @@ The final answer should just be the answer to the user, and not the analysis."""
         )
 
     def extract_answer(self, raw_output: InferenceOutput) -> ReasonData | None:
+        response = raw_output.response
+        raw_output_meta_data = raw_output.meta_data
+        if (
+            "choices" in raw_output_meta_data
+            and isinstance(raw_output_meta_data["choices"], list)
+            and len(raw_output_meta_data["choices"]) > 0
+        ):
+            choice_0 = raw_output_meta_data["choices"][0]
+            if (
+                isinstance(choice_0, dict)
+                and "message" in choice_0
+                and isinstance(choice_0["message"], dict)
+            ):
+                message = choice_0["message"]
+                if "reasoning_content" in message and isinstance(
+                    message["reasoning_content"], str
+                ):
+                    reasoning = message["reasoning_content"]
+                    response = f"<think>\n{reasoning}\n</think>\n\n{response}"
         return ReasonData(
             instruction=raw_output.input["meta_data"]["raw_instruction"],
             category=raw_output.input["meta_data"]["category"],
-            response=raw_output.response,
+            response=response,
             meta_data={
                 "raw_meta_data": raw_output.model_dump(),
                 "template": "STAR-1-ReasonGenerate",
