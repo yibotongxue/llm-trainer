@@ -38,7 +38,6 @@ from transformers import (
     TrainingArguments,
 )
 from transformers.trainer_utils import EvalLoopOutput
-from trl.core import PPODecorators
 from trl.trainer.iterative_sft_config import IterativeSFTConfig
 
 
@@ -229,7 +228,6 @@ class CustomIterativeSFTTrainer(Trainer):
 
         return input_ids, attention_mask, labels
 
-    @PPODecorators.empty_device_cache()
     def step(
         self,
         input_ids: list[torch.LongTensor],
@@ -281,6 +279,9 @@ class CustomIterativeSFTTrainer(Trainer):
 
         for _, batch in enumerate(step_dataloader):
             with self.accelerator.accumulate(self.model):
+                gc.collect()
+                torch.cuda.empty_cache()
+                gc.collect()
                 model_inputs = {k: batch[k] for k in model_inputs_names}
                 loss = self.compute_loss(self.model, model_inputs)
 
